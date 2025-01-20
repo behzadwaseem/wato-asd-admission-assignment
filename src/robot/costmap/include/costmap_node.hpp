@@ -23,19 +23,19 @@ class CostmapNode : public rclcpp::Node {
     robot::CostmapCore costmap_;
     
     // Lidar:
-    rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr lidar_sub;
-    std::string lidar_topic;
+    rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr lidar_sub_;
+    std::string lidar_topic_;
 
     // Costmap
-    rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr cm_pub;
-    std::string cm_topic;
+    rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr cm_pub_;
+    std::string cm_topic_;
 
     // Costmap Features:
-    int cm_width;
-    int cm_height;
-    geometry_msgs::msg::Pose cm_origin;
-    double cm_resolution;
-    double cm_inflation_radius;
+    int cm_width_;
+    int cm_height_;
+    geometry_msgs::msg::Pose cm_origin_;
+    double cm_resolution_;
+    double cm_inflation_radius_;
 
     // Place these constructs here
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr string_pub_;

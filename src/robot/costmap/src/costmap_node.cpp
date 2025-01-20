@@ -8,8 +8,8 @@
 
 // ROS COMMUNICATION FOR COSTMAP WILL GO IN THIS FILE.
 
-CostmapNode::CostmapNode() : Node("costmap"), costmap_(robot::CostmapCore(this->get_logger()))
-// CostmapNode::CostmapNode() : Node("costmap_node"), costmap_(get_logger())
+// CostmapNode::CostmapNode() : Node("costmap"), costmap_(robot::CostmapCore(this->get_logger()))
+CostmapNode::CostmapNode() : Node("costmap_node"), costmap_(get_logger())
 {
   // Declare node paramters:
   declareCostmapParamaters();
@@ -18,11 +18,14 @@ CostmapNode::CostmapNode() : Node("costmap"), costmap_(robot::CostmapCore(this->
   string_pub_ = this->create_publisher<std_msgs::msg::String>("/test_topic", 10);
   timer_ = this->create_wall_timer(std::chrono::milliseconds(500), std::bind(&CostmapNode::publishMessage, this));
 
-  // Initialize subscriber for /lidar topic:
-  lidar_sub = this->create_subscription<sensor_msgs::msg::LaserScan>(lidar_topic, 10, std::bind(&CostmapNode::LidarCallback, this, std::placeholders::_1));
+  // Subscriber for /lidar topic:
+  lidar_sub_ = this->create_subscription<sensor_msgs::msg::LaserScan>(lidar_topic_, 10, std::bind(&CostmapNode::LidarCallback, this, std::placeholders::_1));
 
-  //costmap_.initCostmap(cm_width, cm_height, cm_resolution, cm_inflation_radius, cm_origin);
+  // Initialize costmap:
+  costmap_.initCostmap(cm_width_, cm_height_, cm_resolution_, cm_inflation_radius_, cm_origin_);
 
+    // Publisher for costmap:
+  cm_pub_ = create_publisher<nav_msgs::msg::OccupancyGrid>(cm_topic_, 10);
 }
 
 void CostmapNode::declareCostmapParamaters()
@@ -33,37 +36,37 @@ void CostmapNode::declareCostmapParamaters()
 
   // Lidar:
   this->declare_parameter<std::string>("lidar_topic", "/lidar");
-  lidar_topic = this->get_parameter("lidar_topic").as_string();
+  lidar_topic_ = this->get_parameter("lidar_topic").as_string();
 
   // Costmap:
   this->declare_parameter<std::string>("cm_topic", "/costmap");
-  cm_topic = this->get_parameter("cm_topic").as_string();
+  cm_topic_ = this->get_parameter("cm_topic").as_string();
 
   // Costmap Features:
   this->declare_parameter<int>("cm_width", 100);
-  cm_width = this->get_parameter("cm_width").as_int();
+  cm_width_ = this->get_parameter("cm_width").as_int();
   
   this->declare_parameter<int>("cm_height", 100);
-  cm_height = this->get_parameter("cm_height").as_int();
+  cm_height_ = this->get_parameter("cm_height").as_int();
   
   this->declare_parameter<double>("cm_resolution", 0.1);
-  cm_resolution = this->get_parameter("cm_resolution").as_double();
+  cm_resolution_ = this->get_parameter("cm_resolution").as_double();
 
   this->declare_parameter<double>("cm_inflation_radius", 1.0);
-  cm_inflation_radius = this->get_parameter("cm_inflation_radius").as_double();
+  cm_inflation_radius_ = this->get_parameter("cm_inflation_radius").as_double();
 
   // Initialize robot at bottom-left corner:
   this->declare_parameter<double>("cm_origin_x", -5.0);
-  cm_origin.position.x = this->get_parameter("cm_origin_x").as_double();
+  cm_origin_.position.x = this->get_parameter("cm_origin_x").as_double();
 
   this->declare_parameter<double>("cm_origin_y", -5.0);
-  cm_origin.position.y = this->get_parameter("cm_origin_y").as_double();
+  cm_origin_.position.y = this->get_parameter("cm_origin_y").as_double();
 
   this->declare_parameter<double>("cm_origin_z", 0.0);
-  cm_origin.position.z = this->get_parameter("cm_origin_z").as_double();
+  cm_origin_.position.z = this->get_parameter("cm_origin_z").as_double();
 
   this->declare_parameter<double>("cm_origin_w", 1.0);
-  cm_origin.orientation.w = this->get_parameter("cm_origin_w").as_double();
+  cm_origin_.orientation.w = this->get_parameter("cm_origin_w").as_double();
 }
 
 void CostmapNode::LidarCallback(const sensor_msgs::msg::LaserScan::SharedPtr lidar_msg)
@@ -72,36 +75,44 @@ void CostmapNode::LidarCallback(const sensor_msgs::msg::LaserScan::SharedPtr lid
     Processes and recieves messages published to /lidar topic. (for now, i'm just going to use this to check that i've subscribed properly)
   */
   
-  // Check if the 'ranges' array is not empty
-  if (!lidar_msg->ranges.empty())
-  {
-    // Log the size of the ranges array
-    RCLCPP_INFO(this->get_logger(), "Received LaserScan with %zu ranges", lidar_msg->ranges.size());
+  // Update costmap with most-recent lidar data:
+  costmap_.updateCostmap(lidar_msg);
 
-    // Optionally, log the first few values in the ranges array
-    RCLCPP_INFO(this->get_logger(), "First range: %f", lidar_msg->ranges[0]);
-    RCLCPP_INFO(this->get_logger(), "Last range: %f", lidar_msg->ranges[lidar_msg->ranges.size() - 1]);
+  // Publish Costmap message:
+  auto cm_msg = costmap_.getCostmapData();
+  cm_pub_->publish(*cm_msg);
 
-    // Optionally, check for invalid values (NaN or Inf)
-    for (size_t i = 0; i < lidar_msg->ranges.size(); ++i)
-    {
-      if (std::isnan(lidar_msg->ranges[i]) || std::isinf(lidar_msg->ranges[i]))
-      {
-        RCLCPP_WARN(this->get_logger(), "Invalid range value at index %zu: %f", i, lidar_msg->ranges[i]);
-      }
-    }
-  }
-  else
-  {
-    RCLCPP_WARN(this->get_logger(), "Received empty LaserScan data!");
-  }
+  // Debugging code:
+  // // Check if the 'ranges' array is not empty
+  // if (!lidar_msg->ranges.empty())
+  // {
+  //   // Log the size of the ranges array
+  //   RCLCPP_INFO(this->get_logger(), "Received LaserScan with %zu ranges", lidar_msg->ranges.size());
 
-  // Check other fields of the LaserScan message for consistency
-  RCLCPP_INFO(this->get_logger(), "Scan start angle: %f, Scan end angle: %f, Increment: %f",
-              lidar_msg->angle_min, lidar_msg->angle_max, lidar_msg->angle_increment);
+  //   // Optionally, log the first few values in the ranges array
+  //   RCLCPP_INFO(this->get_logger(), "First range: %f", lidar_msg->ranges[0]);
+  //   RCLCPP_INFO(this->get_logger(), "Last range: %f", lidar_msg->ranges[lidar_msg->ranges.size() - 1]);
+
+  //   // Optionally, check for invalid values (NaN or Inf)
+  //   for (size_t i = 0; i < lidar_msg->ranges.size(); ++i)
+  //   {
+  //     if (std::isnan(lidar_msg->ranges[i]) || std::isinf(lidar_msg->ranges[i]))
+  //     {
+  //       RCLCPP_WARN(this->get_logger(), "Invalid range value at index %zu: %f", i, lidar_msg->ranges[i]);
+  //     }
+  //   }
+  // }
+  // else
+  // {
+  //   RCLCPP_WARN(this->get_logger(), "Received empty LaserScan data!");
+  // }
+
+  // // Check other fields of the LaserScan message for consistency
+  // RCLCPP_INFO(this->get_logger(), "Scan start angle: %f, Scan end angle: %f, Increment: %f",
+  //             lidar_msg->angle_min, lidar_msg->angle_max, lidar_msg->angle_increment);
 }
 
-// Define the timer to publish a message every 500ms (FROM TUTORIAL -- REMOVE)
+// Define the timer to publish a message every 500ms (FROM TUTORIAL --> REMOVE)
 void CostmapNode::publishMessage()
 {
   auto message = std_msgs::msg::String();
