@@ -21,7 +21,7 @@ class CostmapCore {
 
     // Helper functions for inflateCostmapObstacle:
     bool isWithinBounds(int x, int y) const;
-    double calculateDistance(int dx, int dy) const;
+    double calculateDistance(int dx, int dy, int obstacle_x, int obstacle_y) const;
     void applyInflationCost(int x, int y, double distance) const;
 
     // Getter for Costmap data:
