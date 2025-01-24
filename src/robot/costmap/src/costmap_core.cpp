@@ -22,7 +22,7 @@ namespace robot
         cm_data_->info.resolution = resolution;
         cm_data_->info.origin = origin;
 
-        cm_data_->data.resize(width * height, 0); // initialize with alla 0's
+        cm_data_->data.resize(width * height, 0); // initialize with all 0's
 
         inflation_radius_ = inflation_radius;
         inflation_grid_cells_ = std::ceil(inflation_radius / resolution); // convert inflation radius from meters to grid cells
@@ -162,7 +162,7 @@ namespace robot
         int index = y * cm_data_->info.width + x;
 
         // Calculate the inflation cost (linear decay)
-        int cost = static_cast<int>((1.0 - distance / inflation_radius_) * 100);
+        int cost = static_cast<int>((1.0 - distance / inflation_radius_) * 99);
 
         // Update the costmap with the maximum of the current cost and new cost
         cm_data_->data[index] = std::max(static_cast<int8_t>(cost), cm_data_->data[index]);
