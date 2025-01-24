@@ -173,5 +173,3 @@ namespace robot
         return cm_data_;
     }
 }
-
-// https://youtu.be/Iml5M65PrkE
