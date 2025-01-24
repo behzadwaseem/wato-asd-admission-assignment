@@ -54,7 +54,7 @@ namespace robot
             double curr_range = lidar_msg->ranges[i];
 
             // Only operate on valid ranges:
-            if (!(curr_range <= lidar_msg->range_min) || !(curr_range >= lidar_msg->range_max) || std::isfinite(curr_range))
+            if (!(curr_range <= lidar_msg->range_min) && !(curr_range >= lidar_msg->range_max) && std::isfinite(curr_range))
             {
                 // Calculate Cartesian coords:
                 double angle = (i * angle_increment) + angle_min;
