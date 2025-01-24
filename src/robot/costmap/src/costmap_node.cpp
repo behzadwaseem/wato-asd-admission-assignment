@@ -76,8 +76,8 @@ void CostmapNode::LidarCallback(const sensor_msgs::msg::LaserScan::SharedPtr lid
   costmap_.updateCostmap(lidar_msg);
 
   // Publish Costmap message:
-  auto cm_msg->header = costmap_.getCostmapData();
-  cm_msg.header = lidar_msg->header;
+  auto cm_msg = costmap_.getCostmapData();
+  cm_msg->header = lidar_msg->header;
   cm_pub_->publish(*cm_msg);
 
   // Debugging code:
