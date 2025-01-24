@@ -8,8 +8,8 @@
 
 // ROS COMMUNICATION FOR COSTMAP WILL GO IN THIS FILE.
 
-// CostmapNode::CostmapNode() : Node("costmap"), costmap_(robot::CostmapCore(this->get_logger()))
-CostmapNode::CostmapNode() : Node("costmap_node"), costmap_(get_logger())
+CostmapNode::CostmapNode() : Node("costmap"), costmap_(robot::CostmapCore(this->get_logger()))
+// CostmapNode::CostmapNode() : Node("costmap_node"), costmap_(get_logger())
 {
   // Declare node paramters:
   declareCostmapParamaters();
@@ -21,11 +21,11 @@ CostmapNode::CostmapNode() : Node("costmap_node"), costmap_(get_logger())
   // Subscriber for /lidar topic:
   lidar_sub_ = this->create_subscription<sensor_msgs::msg::LaserScan>(lidar_topic_, 10, std::bind(&CostmapNode::LidarCallback, this, std::placeholders::_1));
 
+  // Publisher for costmap:
+  cm_pub_ = create_publisher<nav_msgs::msg::OccupancyGrid>(cm_topic_, 10);
+
   // Initialize costmap:
   costmap_.initCostmap(cm_width_, cm_height_, cm_resolution_, cm_inflation_radius_, cm_origin_);
-
-    // Publisher for costmap:
-  cm_pub_ = create_publisher<nav_msgs::msg::OccupancyGrid>(cm_topic_, 10);
 }
 
 void CostmapNode::declareCostmapParamaters()
@@ -43,43 +43,41 @@ void CostmapNode::declareCostmapParamaters()
   cm_topic_ = this->get_parameter("cm_topic").as_string();
 
   // Costmap Features:
-  this->declare_parameter<int>("cm_width", 100);
+  this->declare_parameter<int>("cm_width", 275);
   cm_width_ = this->get_parameter("cm_width").as_int();
-  
-  this->declare_parameter<int>("cm_height", 100);
+
+  this->declare_parameter<int>("cm_height", 275);
   cm_height_ = this->get_parameter("cm_height").as_int();
-  
+
   this->declare_parameter<double>("cm_resolution", 0.1);
   cm_resolution_ = this->get_parameter("cm_resolution").as_double();
 
-  this->declare_parameter<double>("cm_inflation_radius", 1.0);
+  this->declare_parameter<double>("cm_inflation_radius", 1.5);
   cm_inflation_radius_ = this->get_parameter("cm_inflation_radius").as_double();
 
-  // Initialize robot at bottom-left corner:
-  this->declare_parameter<double>("cm_origin_x", -5.0);
+  // Origin:
+  this->declare_parameter<double>("cm_origin_x", -12.0);
   cm_origin_.position.x = this->get_parameter("cm_origin_x").as_double();
 
-  this->declare_parameter<double>("cm_origin_y", -5.0);
+  this->declare_parameter<double>("cm_origin_y", -12.0);
   cm_origin_.position.y = this->get_parameter("cm_origin_y").as_double();
-
-  this->declare_parameter<double>("cm_origin_z", 0.0);
-  cm_origin_.position.z = this->get_parameter("cm_origin_z").as_double();
 
   this->declare_parameter<double>("cm_origin_w", 1.0);
   cm_origin_.orientation.w = this->get_parameter("cm_origin_w").as_double();
 }
 
-void CostmapNode::LidarCallback(const sensor_msgs::msg::LaserScan::SharedPtr lidar_msg)
+void CostmapNode::LidarCallback(const sensor_msgs::msg::LaserScan::SharedPtr lidar_msg) const
 {
   /*
     Processes and recieves messages published to /lidar topic. (for now, i'm just going to use this to check that i've subscribed properly)
   */
-  
+
   // Update costmap with most-recent lidar data:
   costmap_.updateCostmap(lidar_msg);
 
   // Publish Costmap message:
-  auto cm_msg = costmap_.getCostmapData();
+  auto cm_msg->header = costmap_.getCostmapData();
+  cm_msg.header = lidar_msg->header;
   cm_pub_->publish(*cm_msg);
 
   // Debugging code:
@@ -117,7 +115,7 @@ void CostmapNode::publishMessage()
 {
   auto message = std_msgs::msg::String();
   message.data = "Hello, ROS 2!";
-  RCLCPP_INFO(this->get_logger(), "Publishing: '%s'", message.data.c_str());
+  // RCLCPP_INFO(this->get_logger(), "Publishing: '%s'", message.data.c_str());
   string_pub_->publish(message);
 }
 
